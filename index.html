@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="Game Edukasi Bahasa Indonesia SMP Kelas IX Semester 1: Petualangan Detektif Kosakata dalam Teks Cerita.">
+  <title>Petualangan Detektif Kosakata - Game Edukasi SMP Kelas IX</title>
+  
+  <!-- Google Fonts: Plus Jakarta Sans & Fredoka for friendly modern educational game -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Persistent Top Bar for Game Navigation & XP Tracker -->
+  <header id="game-header" class="game-header hidden">
+    <div class="header-content">
+      <div class="header-left">
+        <button id="btn-nav-home" class="nav-icon-btn" title="Halaman Utama" aria-label="Beranda">🏠</button>
+        <button id="btn-nav-map" class="nav-icon-btn" title="Peta Petualangan" aria-label="Peta">🗺️</button>
+        <button id="btn-nav-leaderboard" class="nav-icon-btn" title="Papan Peringkat" aria-label="Papan Peringkat">🏆</button>
+        <div class="player-pill">
+          <span id="header-avatar-icon" class="avatar-mini-icon">🔎</span>
+          <span id="header-player-name" class="player-name-text">Detektif</span>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="xp-badge-container">
+          <span class="xp-icon">⭐</span>
+          <span id="header-xp-value" class="xp-value">0</span>
+          <span class="xp-unit">XP</span>
+        </div>
+        <button id="btn-music-toggle" class="nav-icon-btn" title="Musik Petualangan" aria-label="Toggle Musik">🎵</button>
+        <button id="btn-sound-toggle" class="nav-icon-btn" title="Suara & Narator" aria-label="Toggle Suara dan Narator">🔊</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Fullscreen Particle Canvas & Dynamic Gamification Elements -->
+  <canvas id="fx-canvas" class="fx-canvas"></canvas>
+  <div id="floating-xp-container" class="floating-xp-container"></div>
+  <div id="combo-banner" class="combo-banner hidden">
+    <span id="combo-icon">🔥</span>
+    <span id="combo-text">COMBO 2x!</span>
+    <span id="combo-bonus" class="combo-bonus-badge">+5 XP</span>
+  </div>
+
+  <main id="game-container" class="game-container">
+    
+    <!-- Interactive Companion Detective Guidance Bubble -->
+    <aside id="detective-companion" class="detective-companion hidden" aria-live="polite">
+      <div class="companion-avatar" id="companion-avatar-icon">🔎</div>
+      <div class="companion-bubble">
+        <span class="companion-name" id="companion-name-label">Detektif Pembaca:</span>
+        <p id="companion-dialogue">Selamat datang, rekan detektif! Mari kita pecahkan misteri kosakata ini bersama.</p>
+      </div>
+    </aside>
+    
+    <!-- ================= SCENE 1: COVER GAME ================= -->
+    <section id="view-cover" class="game-scene active-scene">
+      <div class="cover-card">
+        <div class="cover-badge-top">BAHASA INDONESIA • SMP KELAS IX</div>
+        <div class="cover-art-wrapper">
+          <img src="assets/cover.jpg" alt="Petualangan Detektif Kosakata" class="cover-art-img" onerror="this.src='https://images.unsplash.com/photo-1532012164546-f432f2e3edd4?w=800&auto=format&fit=crop&q=80'">
+          <div class="cover-floating-tag">Level 1 - 5 Petualangan</div>
+        </div>
+        <div class="cover-typography">
+          <h1 class="game-title">PETUALANGAN DETEKTIF KOSAKATA</h1>
+          <p class="game-subtitle">“Temukan Kata, Pecahkan Makna, Taklukkan Tantangan!”</p>
+          <p class="game-meta">Materi: Mengeksplorasi Kosakata dalam Teks Cerita (Semester 1)</p>
+        </div>
+        <div class="cover-action-group">
+          <button id="btn-start-game" class="btn btn-primary btn-large btn-glow">
+            ▶ MULAI PETUALANGAN
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= SCENE 2: PROFIL PEMAIN & PILIH KARAKTER ================= -->
+    <section id="view-profile" class="game-scene hidden-scene">
+      <div class="scene-card">
+        <div class="scene-header">
+          <span class="scene-tag">LANGKAH 1 DARI 2</span>
+          <h2 class="scene-title">Siapa Detektif Hari Ini?</h2>
+          <p class="scene-desc">Lengkapi identitas penyelidikanmu dan pilih mitra avatar detektif.</p>
+        </div>
+
+        <form id="form-player-profile" class="profile-form" onsubmit="return false;">
+          <div class="input-grid">
+            <div class="form-group">
+              <label for="input-player-name">Nama Detektif <span class="req">*</span></label>
+              <input type="text" id="input-player-name" placeholder="Contoh: Rian Pratama" required>
+            </div>
+            <div class="form-group">
+              <label for="input-player-class">Kelas <span class="req">*</span></label>
+              <input type="text" id="input-player-class" placeholder="Contoh: IX-A" value="IX-A" required>
+            </div>
+            <div class="form-group">
+              <label for="input-player-group">Kelompok (Opsional)</label>
+              <input type="text" id="input-player-group" placeholder="Contoh: Tim Rajawali">
+            </div>
+          </div>
+
+          <div class="character-selection-section">
+            <label class="section-label">Pilih Karakter Avatar Detektif:</label>
+            <div class="character-grid">
+              
+              <div class="char-option selected" data-char="reader" data-char-name="Detektif Pembaca" data-icon="🔎" data-img="assets/char_reader.jpg">
+                <div class="char-icon-badge">
+                  <img src="assets/char_reader.jpg" alt="Detektif Pembaca" class="char-avatar-img">
+                </div>
+                <div class="char-info">
+                  <h4>Detektif Pembaca</h4>
+                  <p>Teliti & cermat menangkap petunjuk konteks tersembunyi.</p>
+                </div>
+                <span class="char-check">✓</span>
+              </div>
+
+              <div class="char-option" data-char="explorer" data-char-name="Detektif Penjelajah" data-icon="📚" data-img="assets/char_explorer.jpg">
+                <div class="char-icon-badge">
+                  <img src="assets/char_explorer.jpg" alt="Detektif Penjelajah" class="char-avatar-img">
+                </div>
+                <div class="char-info">
+                  <h4>Detektif Penjelajah</h4>
+                  <p>Berani membuka lorong cerita & mengoleksi kata langka.</p>
+                </div>
+                <span class="char-check">✓</span>
+              </div>
+
+              <div class="char-option" data-char="thinker" data-char-name="Detektif Pemikir" data-icon="🧠" data-img="assets/char_thinker.jpg">
+                <div class="char-icon-badge">
+                  <img src="assets/char_thinker.jpg" alt="Detektif Pemikir" class="char-avatar-img">
+                </div>
+                <div class="char-info">
+                  <h4>Detektif Pemikir</h4>
+                  <p>Logis & kritis mengurai denotasi vs. konotasi makna.</p>
+                </div>
+                <span class="char-check">✓</span>
+              </div>
+
+              <div class="char-option" data-char="creator" data-char-name="Detektif Kreatif" data-icon="✍️" data-img="assets/char_creator.jpg">
+                <div class="char-icon-badge">
+                  <img src="assets/char_creator.jpg" alt="Detektif Kreatif" class="char-avatar-img">
+                </div>
+                <div class="char-info">
+                  <h4>Detektif Kreatif</h4>
+                  <p>Inovatif merangkai kosakata baru jadi kalimat estetis.</p>
+                </div>
+                <span class="char-check">✓</span>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="scene-footer-action">
+            <button id="btn-save-profile" class="btn btn-primary btn-large">
+              ▶ LANJUTKAN
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ================= SCENE 3: CARA BERMAIN ================= -->
+    <section id="view-rules" class="game-scene hidden-scene">
+      <div class="scene-card">
+        <div class="scene-header">
+          <span class="scene-tag">BUKU PANDUAN INVESTIGASI</span>
+          <h2 class="scene-title">Cara Menjadi Detektif Kosakata</h2>
+          <p class="scene-desc">Kuasai aturan permainan dan kumpulkan XP tertinggi!</p>
+        </div>
+
+        <div class="rules-container">
+          <div class="rules-list">
+            <div class="rule-item">
+              <span class="rule-num">1</span>
+              <p><strong>Baca teks dengan teliti</strong> pada setiap lokasi penyelidikan.</p>
+            </div>
+            <div class="rule-item">
+              <span class="rule-num">2</span>
+              <p><strong>Temukan kata-kata penting</strong> yang menjadi kunci rahasia cerita.</p>
+            </div>
+            <div class="rule-item">
+              <span class="rule-num">3</span>
+              <p><strong>Gunakan petunjuk konteks</strong> kalimat untuk mendeteksi makna kata.</p>
+            </div>
+            <div class="rule-item">
+              <span class="rule-num">4</span>
+              <p><strong>Pilih jawaban dengan cermat</strong> agar tidak terkecoh jebakan.</p>
+            </div>
+            <div class="rule-item">
+              <span class="rule-num">5</span>
+              <p><strong>Jelaskan alasan</strong> dan buat kalimat orisinal karyamu.</p>
+            </div>
+            <div class="rule-item">
+              <span class="rule-num">6</span>
+              <p><strong>Selesaikan 5 Level</strong> dari Desa Berburu hingga Benteng Boss Final.</p>
+            </div>
+            <div class="rule-item">
+              <span class="rule-num">7</span>
+              <p><strong>Kumpulkan XP dan 5 Lencana Kehormatan</strong> untuk jadi Master Detektif.</p>
+            </div>
+          </div>
+
+          <div class="xp-reward-card">
+            <h4>💰 Sistem Perolehan XP:</h4>
+            <ul>
+              <li><span>Jawaban Tepat</span> <strong>+10 XP</strong></li>
+              <li><span>Menyelesaikan Level</span> <strong>+20 XP</strong></li>
+              <li><span>Bonus Boss Final</span> <strong>+50 XP</strong></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="scene-footer-action">
+          <button id="btn-open-map" class="btn btn-primary btn-large">
+            🗺️ BUKA PETA PETUALANGAN
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= SCENE 4: PETA PETUALANGAN (LEVEL SELECTOR) ================= -->
+    <section id="view-map" class="game-scene hidden-scene">
+      <div class="scene-card map-scene-card">
+        <div class="map-top-status">
+          <div class="rank-status">
+            <span class="rank-label">Gelar Saat Ini:</span>
+            <span id="map-rank-title" class="rank-badge">Penjelajah Pemula</span>
+          </div>
+          <div class="progress-wrapper">
+            <div class="progress-bar-bg">
+              <div id="map-xp-progress-bar" class="progress-bar-fill" style="width: 10%;"></div>
+            </div>
+            <span id="map-progress-text" class="progress-text">0 / 250 XP Menuju Master</span>
+          </div>
+        </div>
+
+        <h2 class="scene-title text-center">Peta Petualangan Detektif</h2>
+        <p class="scene-desc text-center">Pilih lokasi yang terbuka untuk melanjutkan misi penyelidikan.</p>
+
+        <!-- 5 Level Cards Interactive Map -->
+        <div class="level-map-grid">
+          
+          <!-- Level 1 -->
+          <div id="level-card-1" class="level-node unlocked current" data-level="1">
+            <div class="level-node-badge">LEVEL 1</div>
+            <div class="level-node-icon">🔎</div>
+            <div class="level-node-details">
+              <h3>Desa Berburu Kata</h3>
+              <p>Misi: Temukan 5 kosakata penting dari teks cerita.</p>
+              <span class="node-reward">+50 XP & Badge Mata Elang</span>
+            </div>
+            <button class="btn-enter-level" onclick="GameApp.startLevel(1)">MASUK</button>
+          </div>
+
+          <!-- Level 2 -->
+          <div id="level-card-2" class="level-node locked" data-level="2">
+            <div class="level-node-badge">LEVEL 2</div>
+            <div class="level-node-icon">🧩</div>
+            <div class="level-node-details">
+              <h3>Labirin Makna</h3>
+              <p>Misi: Uji makna konteks 5 kata target.</p>
+              <span class="node-reward">+50 XP & Badge Pemburu Makna</span>
+            </div>
+            <button class="btn-enter-level" disabled onclick="GameApp.startLevel(2)">TERKUNCI 🔒</button>
+          </div>
+
+          <!-- Level 3 -->
+          <div id="level-card-3" class="level-node locked" data-level="3">
+            <div class="level-node-badge">LEVEL 3</div>
+            <div class="level-node-icon">🚪</div>
+            <div class="level-node-details">
+              <h3>Gerbang Kosakata</h3>
+              <p>Misi: Sortir kata umum, khusus, & konotatif.</p>
+              <span class="node-reward">+40 XP & Badge Ahli Konteks</span>
+            </div>
+            <button class="btn-enter-level" disabled onclick="GameApp.startLevel(3)">TERKUNCI 🔒</button>
+          </div>
+
+          <!-- Level 4 -->
+          <div id="level-card-4" class="level-node locked" data-level="4">
+            <div class="level-node-badge">LEVEL 4</div>
+            <div class="level-node-icon">✍️</div>
+            <div class="level-node-details">
+              <h3>Bengkel Kalimat</h3>
+              <p>Misi: Rangkai 3 kalimat logis & kontekstual.</p>
+              <span class="node-reward">+40 XP & Badge Perakit Kalimat</span>
+            </div>
+            <button class="btn-enter-level" disabled onclick="GameApp.startLevel(4)">TERKUNCI 🔒</button>
+          </div>
+
+          <!-- Level 5 -->
+          <div id="level-card-5" class="level-node locked" data-level="5">
+            <div class="level-node-badge">LEVEL 5</div>
+            <div class="level-node-icon">👑</div>
+            <div class="level-node-details">
+              <h3>Benteng Boss Final</h3>
+              <p>Misi: Taklukkan 10 soal Master Kosakata!</p>
+              <span class="node-reward">+100 XP & Badge Master Detektif</span>
+            </div>
+            <button class="btn-enter-level" disabled onclick="GameApp.startLevel(5)">TERKUNCI 🔒</button>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= SCENE 5: LEVEL 1 - BERBURU KATA ================= -->
+    <section id="view-level1" class="game-scene hidden-scene">
+      <div class="scene-card">
+        <div class="scene-header">
+          <span class="level-indicator">LEVEL 1: BERBURU KATA</span>
+          <h2 class="scene-title">Rahasia Ruang Sunyi Perpustakaan</h2>
+          <p class="scene-desc">Klik atau sentuh kata-kata bernuansa tebal di dalam teks untuk mengumpulkannya ke Buku Jurnal!</p>
+        </div>
+
+        <div class="story-reading-box">
+          <div class="story-tag-row">
+            <div class="story-tag">📜 DOKUMEN ARSIP PERPUSTAKAAN SMP</div>
+            <button id="btn-l1-narrate" type="button" class="btn-narrate" title="Dengarkan cerita dibacakan">🔊 Dengarkan Cerita</button>
+          </div>
+          <p class="story-text" id="l1-story-text">
+            Di sudut timur SMP Bintang Kejora, terdapat sebuah ruangan tua yang jarang dikunjungi siswa. Pagi itu, Rian memberanikan diri untuk
+            <span class="clickable-word" data-word="menjelajah">menjelajah</span> 
+            ke dalam ruangan tersebut. Suasana di dalam begitu 
+            <span class="clickable-word" data-word="sunyi">sunyi</span>, 
+            hanya terdengar derit langkah kakinya di atas lantai kayu jati yang berdebu. Sinar matahari pagi menembus celah jendela kaca patri, menyoroti rak-rak buku tua yang berderet tinggi hingga menyentuh langit-langit.
+          </p>
+          <p class="story-text">
+            Dengan rasa 
+            <span class="clickable-word" data-word="antusias">antusias</span> 
+            yang membara di dalam dada, Rian mulai 
+            <span class="clickable-word" data-word="menelusuri">menelusuri</span> 
+            lorong demi lorong rak sastra klasik. Tiba-tiba, matanya tertumbuk pada sebuah buku tebal bersampul beludru biru tua dengan ukiran emas. Ia 
+            <span class="clickable-word" data-word="terpukau">terpukau</span> 
+            menatap keindahan ilustrasi di halaman pembukanya, membayangkan kisah-kisah petualangan pahlawan nusantara yang tersimpan rapi.
+          </p>
+        </div>
+
+        <div class="notebook-section">
+          <div class="notebook-header">
+            <h4>📖 Buku Catatan Detektif (Terkumpul: <span id="l1-collected-count">0</span> / 5 Kata)</h4>
+            <span id="l1-xp-counter" class="pill-badge">+0 XP</span>
+          </div>
+          <div id="l1-word-chips" class="word-chips-grid">
+            <div class="empty-chip">Sentuh kata pada cerita di atas...</div>
+          </div>
+        </div>
+
+        <div class="scene-footer-action">
+          <button id="btn-submit-l1" class="btn btn-primary btn-large" disabled>
+            KLAIM XP & BUKA LEVEL 2 ➔
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= SCENE 6: LEVEL 2 - LABIRIN MAKNA ================= -->
+    <section id="view-level2" class="game-scene hidden-scene">
+      <div class="scene-card">
+        <div class="scene-header">
+          <div class="scene-meta-row">
+            <span class="level-indicator">LEVEL 2: LABIRIN MAKNA</span>
+            <span id="l2-step-indicator" class="pill-badge">Tantangan 1 / 5</span>
+          </div>
+          <h2 class="scene-title">Pecahkan Makna Berdasarkan Konteks</h2>
+          <p class="scene-desc">Gunakan kata-kata di sekitar kata target untuk menyimpulkan arti yang tepat!</p>
+        </div>
+
+        <div class="challenge-box">
+          <div class="context-card">
+            <span class="context-label">Konteks Cerita:</span>
+            <p id="l2-context-sentence" class="context-sentence">
+              "Rian memberanikan diri untuk <strong>menjelajah</strong> ke dalam ruangan tersebut."
+            </p>
+          </div>
+
+          <h3 id="l2-question-title" class="question-text">
+            Apa makna kata <em>menjelajah</em> berdasarkan konteks kalimat di atas?
+          </h3>
+
+          <div id="l2-options-container" class="options-vertical-group">
+            <!-- Options dynamically populated by JS -->
+          </div>
+
+          <!-- Instant Pedagogical Feedback Modal / Box -->
+          <div id="l2-feedback-box" class="feedback-card hidden">
+            <div id="l2-feedback-icon" class="feedback-icon">🎉</div>
+            <div class="feedback-body">
+              <h4 id="l2-feedback-title">HEBAT! Detektif Berhasil!</h4>
+              <p id="l2-feedback-text">Penjelasan makna kontekstual...</p>
+            </div>
+            <button id="btn-l2-next" class="btn btn-primary btn-next">LANJUT ➔</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= SCENE 7: LEVEL 3 - GERBANG KOSAKATA ================= -->
+    <section id="view-level3" class="game-scene hidden-scene">
+      <div class="scene-card">
+        <div class="scene-header">
+          <span class="level-indicator">LEVEL 3: GERBANG KOSAKATA</span>
+          <h2 class="scene-title">Pilah Kata ke Tiga Gerbang</h2>
+          <p class="scene-desc">Sentuh salah satu kartu kata, lalu pilih Gerbang yang sesuai dengan jenisnya!</p>
+        </div>
+
+        <div class="gate-legend">
+          <div class="legend-chip gate-umum-color">🚪 Gerbang Kata Umum (Luas/Hipernim)</div>
+          <div class="legend-chip gate-khusus-color">🚪 Gerbang Kata Khusus (Spesifik/Hiponim)</div>
+          <div class="legend-chip gate-konotasi-color">🚪 Gerbang Makna Konotatif (Kiasan)</div>
+        </div>
+
+        <!-- Word queue to sort -->
+        <div class="cards-deck-section">
+          <h4 class="deck-title">Kartu Kata yang Perlu Diselidiki: (<span id="l3-remaining-count">8</span> tersisa)</h4>
+          <div id="l3-cards-pool" class="cards-pool">
+            <!-- Words loaded via JS -->
+          </div>
+        </div>
+
+        <!-- 3 Interactive Gates -->
+        <div class="gates-grid">
+          <div class="gate-dropzone" data-gate="umum" onclick="GameApp.handleGateSelect('umum')">
+            <div class="gate-header">
+              <span class="gate-icon">🌳</span>
+              <h3>Kata Umum</h3>
+            </div>
+            <p class="gate-desc">Cakupan makna luas & menaungi kata lain.</p>
+            <div id="gate-list-umum" class="gate-items-container"></div>
+          </div>
+
+          <div class="gate-dropzone" data-gate="khusus" onclick="GameApp.handleGateSelect('khusus')">
+            <div class="gate-header">
+              <span class="gate-icon">🔍</span>
+              <h3>Kata Khusus</h3>
+            </div>
+            <p class="gate-desc">Cakupan sempit, bagian spesifik dari kata umum.</p>
+            <div id="gate-list-khusus" class="gate-items-container"></div>
+          </div>
+
+          <div class="gate-dropzone" data-gate="konotatif" onclick="GameApp.handleGateSelect('konotatif')">
+            <div class="gate-header">
+              <span class="gate-icon">✨</span>
+              <h3>Makna Konotatif</h3>
+            </div>
+            <p class="gate-desc">Memiliki makna kias/tambahan rasa, bukan harfiah.</p>
+            <div id="gate-list-konotatif" class="gate-items-container"></div>
+          </div>
+        </div>
+
+        <div id="l3-feedback" class="feedback-card hidden">
+          <div id="l3-feedback-icon" class="feedback-icon">🎉</div>
+          <div class="feedback-body">
+            <h4 id="l3-feedback-title">KATEGORISASI BERHASIL!</h4>
+            <p id="l3-feedback-text">Kamu telah memahami perbedaan kata umum, kata khusus, dan konotasi.</p>
+          </div>
+          <button id="btn-submit-l3" class="btn btn-primary">LANJUT KE LEVEL 4 ➔</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= SCENE 8: LEVEL 4 - BENGKEL KALIMAT ================= -->
+    <section id="view-level4" class="game-scene hidden-scene">
+      <div class="scene-card">
+        <div class="scene-header">
+          <span class="level-indicator">LEVEL 4: BENGKEL KALIMAT</span>
+          <h2 class="scene-title">Rakit Kalimat Detektif Orisinal</h2>
+          <p class="scene-desc">Buktikan kepiawaianmu! Pilih 3 kosakata dan rangkai menjadi kalimat yang padu & gramatikal.</p>
+        </div>
+
+        <div class="words-selection-workshop">
+          <label class="section-label">Pilih 3 Kata (Sentuh untuk memilih):</label>
+          <div id="l4-word-pickers" class="word-picker-chips">
+            <button class="chip-select-btn" data-word="antusias">antusias</button>
+            <button class="chip-select-btn" data-word="terpukau">terpukau</button>
+            <button class="chip-select-btn" data-word="menelusuri">menelusuri</button>
+            <button class="chip-select-btn" data-word="sunyi">sunyi</button>
+            <button class="chip-select-btn" data-word="menakjubkan">menakjubkan</button>
+          </div>
+        </div>
+
+        <div id="l4-sentence-inputs" class="sentence-inputs-wrapper">
+          <div class="workshop-hint">
+            💡 <em>Pilihlah minimal 3 kata di atas terlebih dahulu untuk membuka lembar penulisan kalimat.</em>
+          </div>
+        </div>
+
+        <div class="rubric-reminder">
+          <h4>📋 Kriteria Penilaian Detektif (Skor 4 Sempurna):</h4>
+          <div class="rubric-badges">
+            <span>✓ Makna kata sesuai konteks</span>
+            <span>✓ Struktur kalimat logis (S-P-O-K)</span>
+            <span>✓ Ejaan & tanda baca tepat</span>
+          </div>
+        </div>
+
+        <div class="scene-footer-action">
+          <button id="btn-submit-l4" class="btn btn-primary btn-large" disabled>
+            KIRIM KE DEWAN DETEKTIF & BUKA BOSS FINAL ➔
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= SCENE 9: LEVEL 5 - BOSS FINAL ================= -->
+    <section id="view-level5" class="game-scene hidden-scene">
+      <div class="scene-card boss-card">
+        <div class="boss-header-bar">
+          <div class="boss-title-row">
+            <span class="boss-badge">👑 BOSS FINAL: 10 TANTANGAN AKHIR</span>
+            <span id="boss-progress-pill" class="pill-badge">Soal 1 / 10</span>
+          </div>
+          <div class="boss-health-container">
+            <div class="boss-avatar-box">
+              <img src="assets/char_boss.jpg" alt="Raja Silang Kata" class="boss-avatar-img">
+            </div>
+            <div class="boss-bar-track">
+              <div id="boss-hp-fill" class="boss-hp-fill" style="width: 100%;"></div>
+            </div>
+            <span id="boss-hp-label" class="boss-hp-text">100% Tantangan</span>
+          </div>
+        </div>
+
+        <div class="boss-question-container">
+          <div class="question-header-meta">
+            <span id="boss-competency-tag" class="competency-tag">Menganalisis Makna Konteks</span>
+          </div>
+          <h3 id="boss-question-text" class="boss-question-heading">
+            Teks Soal Boss Final...
+          </h3>
+
+          <div id="boss-options-wrapper" class="options-vertical-group">
+            <!-- Boss Options -->
+          </div>
+
+          <div id="boss-feedback-box" class="feedback-card hidden">
+            <div id="boss-feedback-icon" class="feedback-icon">🏆</div>
+            <div class="feedback-body">
+              <h4 id="boss-feedback-title">LUAR BIASA!</h4>
+              <p id="boss-feedback-text">Pembahasan soal...</p>
+            </div>
+            <button id="btn-boss-next" class="btn btn-primary btn-next">TANTANGAN BERIKUTNYA ➔</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= SCENE 10: HASIL PETUALANGAN & LENCANA ================= -->
+    <section id="view-result" class="game-scene hidden-scene">
+      <div class="scene-card result-scene-card">
+        <div class="confetti-banner">🎉 PETUALANGAN SELESAI 🎉</div>
+        <h2 class="scene-title text-center">Hasil Investigasi Detektif</h2>
+        
+        <div class="certificate-preview-card" id="certificate-card">
+          <div class="cert-header">
+            <span class="cert-tag">SMP BINTANG KEJORA • BAHASA INDONESIA KELAS IX</span>
+            <h3>SERTIFIKAT DETEKTIF KOSAKATA</h3>
+          </div>
+          <div class="cert-body">
+            <div class="cert-avatar-display" id="cert-avatar">🔎</div>
+            <h2 id="cert-player-name" class="cert-name">Detektif Unggul</h2>
+            <p id="cert-class-group" class="cert-meta">Kelas IX-A • Tim Rajawali</p>
+            <div class="cert-divider"></div>
+            <div class="cert-stats-grid">
+              <div class="stat-box">
+                <span class="stat-label">TOTAL XP</span>
+                <span id="cert-total-xp" class="stat-value">250 XP</span>
+              </div>
+              <div class="stat-box">
+                <span class="stat-label">GELAR AKHIR</span>
+                <span id="cert-rank-title" class="stat-value highlight">MASTER DETEKTIF</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5 Badges Showcase -->
+        <div class="badges-showcase-section">
+          <h3>🎖️ Koleksi 5 Lencana Kehormatan</h3>
+          <div class="badges-grid">
+            <div id="badge-1" class="badge-item unlocked">
+              <span class="badge-icon">🔎</span>
+              <h4>Mata Elang Kata</h4>
+              <p>Menemukan 5 kosakata cerita</p>
+            </div>
+            <div id="badge-2" class="badge-item unlocked">
+              <span class="badge-icon">📖</span>
+              <h4>Pemburu Makna</h4>
+              <p>Mendeduksi konteks kalimat</p>
+            </div>
+            <div id="badge-3" class="badge-item unlocked">
+              <span class="badge-icon">🧠</span>
+              <h4>Ahli Konteks</h4>
+              <p>Menyortir 3 gerbang kata</p>
+            </div>
+            <div id="badge-4" class="badge-item unlocked">
+              <span class="badge-icon">✍️</span>
+              <h4>Perakit Kalimat</h4>
+              <p>Menyusun kalimat orisinal</p>
+            </div>
+            <div id="badge-5" class="badge-item unlocked">
+              <span class="badge-icon">👑</span>
+              <h4>Master Detektif</h4>
+              <p>Taklukkan 10 tantangan Boss</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="scene-footer-action-multi">
+          <button id="btn-go-reflection" class="btn btn-primary btn-large">
+            📝 ISI REFLEKSI PEMBELAJARAN ➔
+          </button>
+          <button id="btn-restart-game" class="btn btn-secondary">
+            🔄 MAIN LAGI DARI AWAL
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= SCENE 11: REFLEKSI SANG DETEKTIF ================= -->
+    <section id="view-reflection" class="game-scene hidden-scene">
+      <div class="scene-card">
+        <div class="scene-header">
+          <span class="scene-tag">METAKOGNISI SISWA</span>
+          <h2 class="scene-title">Refleksi Sang Detektif</h2>
+          <p class="scene-desc">Renungkan apa yang telah kamu pelajari selama mengeksplorasi kosakata cerita.</p>
+        </div>
+
+        <form id="form-reflection" class="reflection-form" onsubmit="return false;">
+          
+          <div class="ref-question-item">
+            <label>1. Kosakata baru apa yang paling kamu ingat dan ingin kamu gunakan dalam tulisan sehari-hari?</label>
+            <input type="text" id="ref-q1" placeholder="Tuliskan kosakata dan alasanmu..." required>
+          </div>
+
+          <div class="ref-question-item">
+            <label>2. Bagaimana cara paling efektif yang kamu temukan untuk mengetahui arti kata yang belum kamu kenal?</label>
+            <select id="ref-q2" required>
+              <option value="">Pilih strategi detektifmu...</option>
+              <option value="konteks">Membaca kata-kata di sekitar kalimat (Petunjuk Konteks)</option>
+              <option value="asosiasi">Menghubungkan dengan pengalaman atau kata lain yang mirip</option>
+              <option value="kamus">Mencari definisi di kamus (KBBI)</option>
+              <option value="tanya">Berdiskusi bersama teman atau guru</option>
+            </select>
+          </div>
+
+          <div class="ref-question-item">
+            <label>3. Tantangan level mana yang menurutmu paling seru dan menantang?</label>
+            <div class="radio-pill-group">
+              <label><input type="radio" name="ref-favorite" value="L1" checked> Level 1: Berburu</label>
+              <label><input type="radio" name="ref-favorite" value="L2"> Level 2: Labirin</label>
+              <label><input type="radio" name="ref-favorite" value="L3"> Level 3: Gerbang</label>
+              <label><input type="radio" name="ref-favorite" value="L4"> Level 4: Bengkel</label>
+              <label><input type="radio" name="ref-favorite" value="L5"> Level 5: Boss</label>
+            </div>
+          </div>
+
+          <div class="ref-question-item">
+            <label>4. Seberapa paham kamu dengan materi "Mengeksplorasi Kosakata dalam Cerita"?</label>
+            <div class="sentiment-grid">
+              <label class="sentiment-item">
+                <input type="radio" name="ref-sentiment" value="sangat" checked>
+                <div class="sentiment-card">
+                  <span class="emoji">😊</span>
+                  <span>Sangat Paham</span>
+                </div>
+              </label>
+              <label class="sentiment-item">
+                <input type="radio" name="ref-sentiment" value="paham">
+                <div class="sentiment-card">
+                  <span class="emoji">🙂</span>
+                  <span>Paham</span>
+                </div>
+              </label>
+              <label class="sentiment-item">
+                <input type="radio" name="ref-sentiment" value="cukup">
+                <div class="sentiment-card">
+                  <span class="emoji">😐</span>
+                  <span>Cukup Paham</span>
+                </div>
+              </label>
+              <label class="sentiment-item">
+                <input type="radio" name="ref-sentiment" value="perlu">
+                <div class="sentiment-card">
+                  <span class="emoji">😕</span>
+                  <span>Perlu Belajar</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="scene-footer-action">
+            <button id="btn-save-reflection" class="btn btn-primary btn-large">
+              💾 SIMPAN REFLEKSI & SELESAI
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </section>
+
+    <!-- ================= SCENE 12: PAPAN PERINGKAT DETEKTIF ================= -->
+    <section id="view-leaderboard" class="game-scene hidden-scene">
+      <div class="scene-card">
+        <div class="scene-header">
+          <span class="scene-tag">REKAP SELURUH DETEKTIF</span>
+          <h2 class="scene-title">🏆 Papan Peringkat Detektif</h2>
+          <p class="scene-desc">Peringkat detektif dengan XP tertinggi yang tersimpan di perangkat ini (cocok dipakai bergiliran satu laptop/tablet di kelas).</p>
+        </div>
+
+        <div class="leaderboard-filter-row">
+          <label for="lb-class-filter" class="section-label">Filter Kelas:</label>
+          <select id="lb-class-filter">
+            <option value="">Semua Kelas</option>
+          </select>
+          <button id="btn-lb-refresh" class="btn btn-secondary btn-small">🔄 Muat Ulang</button>
+        </div>
+
+        <div id="lb-status-message" class="leaderboard-status hidden"></div>
+
+        <ol id="lb-list" class="leaderboard-list"></ol>
+
+        <div class="scene-footer-action">
+          <button id="btn-lb-back-map" class="btn btn-primary btn-large">
+            ⬅ KEMBALI KE PETA
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
