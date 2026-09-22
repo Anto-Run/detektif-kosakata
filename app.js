@@ -468,6 +468,14 @@ class VoiceOver {
     this.supported = typeof window !== 'undefined' && 'speechSynthesis' in window;
     this.voice = null;
     this.voicesReady = false;
+    // Chrome on Android silently garbage-collects a SpeechSynthesisUtterance
+    // that nothing keeps a reference to, killing speech mid-sentence - this
+    // rarely shows up on desktop (different GC timing) but is a very common
+    // cause of "works on my computer, silent on the phone". Keeping the
+    // utterance (and a keep-alive watchdog for Chrome's ~15s auto-pause bug)
+    // on `this` fixes both.
+    this._activeUtterance = null;
+    this._keepAliveTimer = null;
     if (this.supported) {
       this._loadVoice();
       window.speechSynthesis.onvoiceschanged = () => this._loadVoice();
@@ -486,6 +494,13 @@ class VoiceOver {
     } catch (e) {}
   }
 
+  _clearKeepAlive() {
+    if (this._keepAliveTimer) {
+      clearInterval(this._keepAliveTimer);
+      this._keepAliveTimer = null;
+    }
+  }
+
   speak(text, { rate = 1, pitch = 1.05, interrupt = true, onEnd = null } = {}) {
     if (!this.enabled || !this.supported || !text) {
       if (onEnd) onEnd();
@@ -493,16 +508,36 @@ class VoiceOver {
     }
     try {
       if (interrupt) window.speechSynthesis.cancel();
+      this._clearKeepAlive();
       const utter = new SpeechSynthesisUtterance(text);
       utter.lang = 'id-ID';
       utter.rate = rate;
       utter.pitch = pitch;
       utter.volume = 0.95;
       if (this.voice) utter.voice = this.voice;
-      if (onEnd) {
-        utter.onend = onEnd;
-        utter.onerror = onEnd;
-      }
+
+      const finish = () => {
+        this._clearKeepAlive();
+        if (this._activeUtterance === utter) this._activeUtterance = null;
+        if (onEnd) onEnd();
+      };
+      utter.onend = finish;
+      utter.onerror = finish;
+
+      // Keep a strong reference so Chrome/Android can't GC it mid-utterance.
+      this._activeUtterance = utter;
+
+      // Android Chrome auto-pauses the speech queue after ~15s of silence
+      // detection on long utterances; nudging pause/resume keeps it alive.
+      this._keepAliveTimer = setInterval(() => {
+        if (!window.speechSynthesis.speaking) {
+          this._clearKeepAlive();
+          return;
+        }
+        window.speechSynthesis.pause();
+        window.speechSynthesis.resume();
+      }, 5000);
+
       window.speechSynthesis.speak(utter);
     } catch (e) {
       console.warn('Voice narration error:', e);
@@ -511,6 +546,8 @@ class VoiceOver {
   }
 
   stop() {
+    this._clearKeepAlive();
+    this._activeUtterance = null;
     if (this.supported) {
       try { window.speechSynthesis.cancel(); } catch (e) {}
     }
