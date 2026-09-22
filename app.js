@@ -104,6 +104,10 @@ class SoundFX {
     this.musicEnabled = false;
     this.bgmTimer = null;
     this.bgmStep = 0;
+    // Extra gain applied to one-shot SFX (not BGM) so clicks/correct/combo/etc.
+    // punch through clearly on phone speakers. The compressor on the master
+    // bus keeps this from clipping even when several sounds stack.
+    this.sfxBoost = 1.8;
   }
 
   init() {
@@ -123,14 +127,17 @@ class SoundFX {
     const ctx = this.ctx;
 
     this.masterGain = ctx.createGain();
-    this.masterGain.gain.value = 0.9;
+    this.masterGain.gain.value = 1.0;
 
+    // Threshold lowered and ratio raised versus before so the louder SFX
+    // (sfxBoost) get tamed into a punchy, consistent level instead of
+    // clipping or distorting on phone speakers.
     this.compressor = ctx.createDynamicsCompressor();
-    this.compressor.threshold.setValueAtTime(-18, ctx.currentTime);
-    this.compressor.knee.setValueAtTime(24, ctx.currentTime);
-    this.compressor.ratio.setValueAtTime(4, ctx.currentTime);
+    this.compressor.threshold.setValueAtTime(-22, ctx.currentTime);
+    this.compressor.knee.setValueAtTime(20, ctx.currentTime);
+    this.compressor.ratio.setValueAtTime(6, ctx.currentTime);
     this.compressor.attack.setValueAtTime(0.003, ctx.currentTime);
-    this.compressor.release.setValueAtTime(0.25, ctx.currentTime);
+    this.compressor.release.setValueAtTime(0.22, ctx.currentTime);
 
     this.masterGain.connect(this.compressor);
     this.compressor.connect(ctx.destination);
@@ -159,7 +166,8 @@ class SoundFX {
     return impulse;
   }
 
-  // opts: { reverb: bool, filterFreq, filterType, slideTo }
+  // opts: { reverb: bool, filterFreq, filterType, slideTo, boost }
+  // boost defaults to true (one-shot SFX); pass boost:false for BGM notes.
   playTone(freq, type = 'sine', duration = 0.15, gainVal = 0.1, delay = 0, opts = {}) {
     if (!this.soundEnabled) return;
     try {
@@ -174,10 +182,12 @@ class SoundFX {
         osc.frequency.exponentialRampToValueAtTime(opts.slideTo, t + duration);
       }
 
+      const effectiveGain = gainVal * (opts.boost === false ? 1 : this.sfxBoost);
+
       // Fast soft attack instead of an instant jump - removes the faint
       // "tick" artifact and makes every note feel like a gentle pluck.
       gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.exponentialRampToValueAtTime(Math.max(gainVal, 0.0005), t + Math.min(0.02, duration * 0.3));
+      gain.gain.exponentialRampToValueAtTime(Math.max(effectiveGain, 0.0005), t + Math.min(0.02, duration * 0.3));
       gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
 
       let outNode = osc;
@@ -201,7 +211,8 @@ class SoundFX {
   }
 
   // Short filtered noise burst for percussive texture (hi-hat ticks, impact cracks).
-  playNoise(duration = 0.08, gainVal = 0.06, delay = 0, filterFreq = 4000, filterType = 'highpass') {
+  // boost defaults to true (one-shot SFX); pass boost:false for BGM's hi-hat ticks.
+  playNoise(duration = 0.08, gainVal = 0.06, delay = 0, filterFreq = 4000, filterType = 'highpass', boost = true) {
     if (!this.soundEnabled) return;
     try {
       this.init();
@@ -212,13 +223,15 @@ class SoundFX {
       const data = buffer.getChannelData(0);
       for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
 
+      const effectiveGain = gainVal * (boost ? this.sfxBoost : 1);
+
       const src = this.ctx.createBufferSource();
       src.buffer = buffer;
       const filter = this.ctx.createBiquadFilter();
       filter.type = filterType;
       filter.frequency.value = filterFreq;
       const gain = this.ctx.createGain();
-      gain.gain.setValueAtTime(gainVal, t);
+      gain.gain.setValueAtTime(effectiveGain, t);
       gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
 
       src.connect(filter);
@@ -250,7 +263,7 @@ class SoundFX {
       filter.Q.value = 1.2;
       filter.frequency.setValueAtTime(500, t);
       filter.frequency.exponentialRampToValueAtTime(1400, t + 0.12);
-      gain.gain.setValueAtTime(0.05, t);
+      gain.gain.setValueAtTime(0.05 * this.sfxBoost, t);
       gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
       osc.connect(filter);
       filter.connect(gain);
@@ -290,7 +303,7 @@ class SoundFX {
       filter.type = 'lowpass';
       filter.frequency.setValueAtTime(1800, t);
       filter.frequency.exponentialRampToValueAtTime(400, t + 0.28);
-      gain.gain.setValueAtTime(0.12, t);
+      gain.gain.setValueAtTime(0.12 * this.sfxBoost, t);
       gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
       osc.connect(filter);
       filter.connect(gain);
@@ -325,7 +338,7 @@ class SoundFX {
       osc.type = 'sine';
       osc.frequency.setValueAtTime(180, t);
       osc.frequency.exponentialRampToValueAtTime(45, t + 0.25);
-      gain.gain.setValueAtTime(0.32, t);
+      gain.gain.setValueAtTime(Math.min(0.45, 0.32 * (this.sfxBoost * 0.75)), t);
       gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
       osc.connect(gain);
       gain.connect(this.masterGain);
@@ -757,6 +770,78 @@ const GameApp = {
     }));
   },
 
+  // Custom Popup / Modal Helper (replaces native alert()/confirm()).
+  // opts: { icon, eyebrow, title, message, xp, variant, confirmText, cancelText, onConfirm, onCancel }
+  showModal(opts = {}) {
+    const {
+      icon = '✨',
+      eyebrow = '',
+      title = '',
+      message = '',
+      xp = null,
+      variant = 'default',
+      confirmText = 'OK',
+      cancelText = null,
+      onConfirm = null,
+      onCancel = null
+    } = opts;
+
+    SFX.whoosh();
+
+    const overlay = document.getElementById('app-modal-overlay');
+    const card = document.getElementById('app-modal-card');
+    const eyebrowEl = document.getElementById('app-modal-eyebrow');
+    const xpPill = document.getElementById('app-modal-xp-pill');
+    const confirmBtn = document.getElementById('app-modal-btn-confirm');
+    const cancelBtn = document.getElementById('app-modal-btn-cancel');
+
+    document.getElementById('app-modal-icon').textContent = icon;
+    document.getElementById('app-modal-title').textContent = title;
+    document.getElementById('app-modal-message').textContent = message;
+
+    if (eyebrow) {
+      eyebrowEl.textContent = eyebrow;
+      eyebrowEl.classList.remove('hidden');
+    } else {
+      eyebrowEl.classList.add('hidden');
+    }
+
+    if (xp !== null) {
+      xpPill.textContent = `⭐ +${xp} XP`;
+      xpPill.classList.remove('hidden');
+    } else {
+      xpPill.classList.add('hidden');
+    }
+
+    card.className = `app-modal-card variant-${variant}`;
+
+    confirmBtn.textContent = confirmText;
+    confirmBtn.onclick = () => {
+      SFX.click();
+      this.closeModal();
+      if (onConfirm) onConfirm();
+    };
+
+    if (cancelText) {
+      cancelBtn.textContent = cancelText;
+      cancelBtn.classList.remove('hidden');
+      cancelBtn.onclick = () => {
+        SFX.click();
+        this.closeModal();
+        if (onCancel) onCancel();
+      };
+    } else {
+      cancelBtn.classList.add('hidden');
+      cancelBtn.onclick = null;
+    }
+
+    overlay.classList.remove('hidden');
+  },
+
+  closeModal() {
+    document.getElementById('app-modal-overlay').classList.add('hidden');
+  },
+
   // Interactive Companion Dialogue Helper
   setCompanion(text) {
     const el = document.getElementById('detective-companion');
@@ -996,13 +1081,33 @@ const GameApp = {
       if (!nameInput) {
         SFX.wrong();
         this.screenShake();
-        alert('Mohon masukkan nama detektifmu terlebih dahulu!');
-        document.getElementById('input-player-name').focus();
+        this.showModal({
+          icon: '🕵️',
+          title: 'Nama Detektif Diperlukan',
+          message: 'Mohon masukkan nama detektifmu terlebih dahulu sebelum melanjutkan penyelidikan.',
+          variant: 'warn',
+          confirmText: 'Mengerti',
+          onConfirm: () => document.getElementById('input-player-name').focus()
+        });
+        return;
+      }
+
+      if (!classInput) {
+        SFX.wrong();
+        this.screenShake();
+        this.showModal({
+          icon: '🏫',
+          title: 'Kelas Diperlukan',
+          message: 'Mohon isi kelasmu (contoh: IX-A) terlebih dahulu sebelum melanjutkan penyelidikan.',
+          variant: 'warn',
+          confirmText: 'Mengerti',
+          onConfirm: () => document.getElementById('input-player-class').focus()
+        });
         return;
       }
 
       this.state.player.name = nameInput;
-      this.state.player.class = classInput || 'IX-A';
+      this.state.player.class = classInput;
       this.state.player.group = groupInput;
 
       document.getElementById('header-player-name').textContent = this.state.player.name;
@@ -1039,7 +1144,13 @@ const GameApp = {
       narrateBtn.addEventListener('click', () => {
         SFX.click();
         if (!Narrator.supported) {
-          alert('Maaf, perangkat/peramban ini belum mendukung narator suara.');
+          this.showModal({
+            icon: '🔇',
+            title: 'Narator Tidak Tersedia',
+            message: 'Maaf, perangkat atau peramban ini belum mendukung fitur narator suara.',
+            variant: 'info',
+            confirmText: 'Oke'
+          });
           return;
         }
         const storyText = document.getElementById('l1-story-text').innerText;
@@ -1082,9 +1193,15 @@ const GameApp = {
     });
 
     document.getElementById('btn-restart-game').addEventListener('click', () => {
-      if (confirm('Mulai petualangan baru dari awal?')) {
-        location.reload();
-      }
+      this.showModal({
+        icon: '🔄',
+        title: 'Mulai Petualangan Baru?',
+        message: 'Seluruh XP, lencana, dan progres pada sesi ini akan direset dari awal.',
+        variant: 'confirm',
+        confirmText: 'Ya, Mulai Baru',
+        cancelText: 'Batal',
+        onConfirm: () => location.reload()
+      });
     });
 
     document.getElementById('btn-save-reflection').addEventListener('click', () => {
@@ -1098,8 +1215,15 @@ const GameApp = {
           sentiment: document.querySelector('input[name="ref-sentiment"]:checked')?.value
         });
       }
-      alert('🎉 Refleksi berhasil disimpan! Selamat, kamu telah menyelesaikan seluruh petualangan detektif kosakata!');
-      this.showScene('view-result');
+      this.showModal({
+        icon: '🎉',
+        eyebrow: 'Refleksi Tersimpan',
+        title: 'Kerja Bagus, Detektif!',
+        message: 'Selamat, kamu telah menyelesaikan seluruh petualangan detektif kosakata!',
+        variant: 'reward',
+        confirmText: 'Lihat Sertifikat ➔',
+        onConfirm: () => this.showScene('view-result')
+      });
     });
   },
 
@@ -1210,9 +1334,19 @@ const GameApp = {
       this.particles.burst(window.innerWidth / 2, window.innerHeight / 2, 80);
     }
     this.setCompanion("Selamat! Kamu berhasil meraih Lencana 🔎 Mata Elang Kata!");
-    alert('🎉 LEVEL 1 TUNTAS! Kamu mendapatkan +70 XP dan Lencana 🔎 Mata Elang Kata!');
-    this.updateMapUI();
-    this.showScene('view-map');
+    this.showModal({
+      icon: '🔎',
+      eyebrow: 'Level 1 Tuntas',
+      title: 'Lencana Mata Elang Kata!',
+      message: 'Kamu berhasil menemukan seluruh kosakata kunci dalam cerita.',
+      xp: 70,
+      variant: 'reward',
+      confirmText: 'Lanjut ke Peta ➔',
+      onConfirm: () => {
+        this.updateMapUI();
+        this.showScene('view-map');
+      }
+    });
   },
 
   // ================= LEVEL 2 LOGIC =================
@@ -1320,9 +1454,19 @@ const GameApp = {
           this.particles.burst(window.innerWidth / 2, window.innerHeight / 2, 80);
         }
         this.setCompanion("Luar biasa! Labirin Makna berhasil kamu lalui, lencana Pemburu Makna diraih!");
-        alert('🎉 LEVEL 2 TUNTAS! Kamu mendapatkan +20 Bonus XP dan Lencana 📖 Pemburu Makna!');
-        this.updateMapUI();
-        this.showScene('view-map');
+        this.showModal({
+          icon: '📖',
+          eyebrow: 'Level 2 Tuntas',
+          title: 'Lencana Pemburu Makna!',
+          message: 'Kamu berhasil memecahkan seluruh petunjuk konteks kalimat.',
+          xp: 20,
+          variant: 'reward',
+          confirmText: 'Lanjut ke Peta ➔',
+          onConfirm: () => {
+            this.updateMapUI();
+            this.showScene('view-map');
+          }
+        });
       }
     }
   },
@@ -1369,7 +1513,13 @@ const GameApp = {
   handleGateSelect(gateType) {
     if (!this.state.level3SelectedWord) {
       SFX.click();
-      alert('Pilih salah satu kartu kata di atas terlebih dahulu!');
+      this.showModal({
+        icon: '🃏',
+        title: 'Pilih Kartu Dulu',
+        message: 'Sentuh salah satu kartu kata di atas terlebih dahulu sebelum memilih gerbang.',
+        variant: 'warn',
+        confirmText: 'Mengerti'
+      });
       return;
     }
 
@@ -1409,7 +1559,13 @@ const GameApp = {
       SFX.wrong();
       this.screenShake();
       this.haptic(50);
-      alert(`⚠️ Belum tepat! Kata "${item.word}" bukan termasuk dalam Gerbang ${gateType.toUpperCase()}. Coba pelajari cakupan maknanya kembali.`);
+      this.showModal({
+        icon: '🔍',
+        title: 'Belum Tepat',
+        message: `Kata "${item.word}" bukan termasuk dalam Gerbang ${gateType.toUpperCase()}. Coba pelajari cakupan maknanya kembali.`,
+        variant: 'warn',
+        confirmText: 'Coba Lagi'
+      });
     }
   },
 
@@ -1422,9 +1578,19 @@ const GameApp = {
     if (this.particles) {
       this.particles.burst(window.innerWidth / 2, window.innerHeight / 2, 80);
     }
-    alert('🎉 LEVEL 3 TUNTAS! Kamu mendapatkan Lencana 🧠 Ahli Konteks!');
-    this.updateMapUI();
-    this.showScene('view-map');
+    this.showModal({
+      icon: '🧠',
+      eyebrow: 'Level 3 Tuntas',
+      title: 'Lencana Ahli Konteks!',
+      message: 'Kamu berhasil memilah seluruh kata ke gerbang yang tepat.',
+      xp: 20,
+      variant: 'reward',
+      confirmText: 'Lanjut ke Peta ➔',
+      onConfirm: () => {
+        this.updateMapUI();
+        this.showScene('view-map');
+      }
+    });
   },
 
   // ================= LEVEL 4 LOGIC (BENGKEL KALIMAT) =================
@@ -1443,7 +1609,13 @@ const GameApp = {
       btn.classList.remove('picked');
     } else {
       if (this.state.level4SelectedWords.length >= 3) {
-        alert('Maksimal memilih 3 kata detektif!');
+        this.showModal({
+          icon: '✋',
+          title: 'Maksimal 3 Kata',
+          message: 'Kamu hanya boleh memilih 3 kata untuk Bengkel Kalimat. Batalkan satu pilihan dulu untuk mengganti.',
+          variant: 'warn',
+          confirmText: 'Mengerti'
+        });
         return;
       }
       this.state.level4SelectedWords.push(word);
@@ -1491,7 +1663,13 @@ const GameApp = {
     if (!allValid) {
       SFX.wrong();
       this.screenShake();
-      alert('Mohon buat kalimat yang lengkap (minimal 4-5 kata) untuk setiap kata yang dipilih!');
+      this.showModal({
+        icon: '✍️',
+        title: 'Kalimat Belum Lengkap',
+        message: 'Mohon buat kalimat yang lengkap (minimal 4-5 kata) untuk setiap kata yang dipilih.',
+        variant: 'warn',
+        confirmText: 'Perbaiki Kalimat'
+      });
       return;
     }
 
@@ -1504,9 +1682,19 @@ const GameApp = {
       this.particles.burst(window.innerWidth / 2, window.innerHeight / 2, 90);
     }
     this.setCompanion("Kalimatmu sangat kreatif! Benteng Boss Final kini telah dibuka!");
-    alert('🎉 LEVEL 4 TUNTAS! Dewan Detektif meloloskan kalimatmu. Kamu meraih +40 XP dan Lencana ✍️ Perakit Kalimat! Benteng Boss Final kini terbuka!');
-    this.updateMapUI();
-    this.showScene('view-map');
+    this.showModal({
+      icon: '✍️',
+      eyebrow: 'Level 4 Tuntas',
+      title: 'Lencana Perakit Kalimat!',
+      message: 'Dewan Detektif meloloskan kalimatmu. Benteng Boss Final kini terbuka!',
+      xp: 40,
+      variant: 'reward',
+      confirmText: '⚔️ Hadapi Boss Final ➔',
+      onConfirm: () => {
+        this.updateMapUI();
+        this.showScene('view-map');
+      }
+    });
   },
 
   // ================= LEVEL 5 LOGIC (BOSS FINAL) =================

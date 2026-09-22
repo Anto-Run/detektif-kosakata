@@ -47,6 +47,25 @@
     <span id="combo-bonus" class="combo-bonus-badge">+5 XP</span>
   </div>
 
+  <!-- Custom Popup / Modal - replaces native alert()/confirm() so every
+       message stays in the detective/game visual theme instead of a plain
+       blocking browser dialog. -->
+  <div id="app-modal-overlay" class="app-modal-overlay hidden">
+    <div id="app-modal-card" class="app-modal-card">
+      <div id="app-modal-badge-ring" class="app-modal-badge-ring">
+        <span id="app-modal-icon" class="app-modal-icon">🎉</span>
+      </div>
+      <span id="app-modal-eyebrow" class="app-modal-eyebrow hidden"></span>
+      <h3 id="app-modal-title" class="app-modal-title">Judul</h3>
+      <p id="app-modal-message" class="app-modal-message">Pesan...</p>
+      <div id="app-modal-xp-pill" class="app-modal-xp-pill hidden">+0 XP</div>
+      <div class="app-modal-actions">
+        <button id="app-modal-btn-cancel" type="button" class="btn btn-secondary hidden">Batal</button>
+        <button id="app-modal-btn-confirm" type="button" class="btn btn-primary">OK</button>
+      </div>
+    </div>
+  </div>
+
   <main id="game-container" class="game-container">
     
     <!-- Interactive Companion Detective Guidance Bubble -->
@@ -96,7 +115,7 @@
             </div>
             <div class="form-group">
               <label for="input-player-class">Kelas <span class="req">*</span></label>
-              <input type="text" id="input-player-class" placeholder="Contoh: IX-A" value="IX-A" required>
+              <input type="text" id="input-player-class" placeholder="Contoh: IX-A" required>
             </div>
             <div class="form-group">
               <label for="input-player-group">Kelompok (Opsional)</label>
