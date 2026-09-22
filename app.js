@@ -4,7 +4,7 @@
  * Script Logika Interaktif & Web Audio Engine
  */
 
-import { submitScore, attachReflection, fetchTopScores } from './score-store.js';
+import { isFirebaseConfigured, submitScore, attachReflection, fetchTopScores } from './score-store.js';
 
 // Confetti & Particle FX Engine (Zero External Dependency)
 class ParticleEngine {
@@ -1939,6 +1939,12 @@ const GameApp = {
   async renderLeaderboard() {
     const statusEl = document.getElementById('lb-status-message');
     const listEl = document.getElementById('lb-list');
+    const scopeDescEl = document.getElementById('lb-scope-desc');
+    if (scopeDescEl) {
+      scopeDescEl.textContent = isFirebaseConfigured
+        ? 'Peringkat detektif dengan XP tertinggi dari seluruh siswa yang sudah menyelesaikan petualangan (gabungan semua perangkat).'
+        : 'Peringkat detektif dengan XP tertinggi yang tersimpan di perangkat ini (cocok dipakai bergiliran satu laptop/tablet di kelas).';
+    }
     statusEl.classList.remove('hidden');
     statusEl.textContent = 'Memuat papan peringkat...';
     listEl.innerHTML = '';
@@ -1947,7 +1953,9 @@ const GameApp = {
     this._leaderboardData = scores;
 
     if (scores.length === 0) {
-      statusEl.textContent = 'Belum ada skor tersimpan di perangkat ini. Skor akan muncul di sini setelah ada yang menyelesaikan petualangan.';
+      statusEl.textContent = isFirebaseConfigured
+        ? 'Belum ada skor tersimpan. Skor akan muncul di sini setelah ada siswa yang menyelesaikan petualangan, dari HP mana pun.'
+        : 'Belum ada skor tersimpan di perangkat ini. Skor akan muncul di sini setelah ada yang menyelesaikan petualangan.';
       return;
     }
 
