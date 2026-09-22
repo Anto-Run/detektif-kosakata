@@ -34,7 +34,7 @@ service cloud.firestore {
       allow read: if true;
       allow create: if request.resource.data.keys().hasAll(['name', 'class', 'xp'])
                     && request.resource.data.xp is int
-                    && request.resource.data.xp <= 300;
+                    && request.resource.data.xp <= 500;
       allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reflection']);
       allow delete: if false;
     }

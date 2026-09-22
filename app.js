@@ -1914,7 +1914,13 @@ const GameApp = {
     });
 
     Narrator.speak(`Selamat, ${this.state.player.name}! Kamu berhasil menyelesaikan seluruh investigasi dengan gelar ${finalRank}, dan meraih ${this.state.xp} XP.`);
-    this.submitScoreToCloud(finalRank);
+
+    // Only submit once per session - otherwise replaying the boss level
+    // after finishing (which no longer grants extra XP) would still create
+    // a fresh duplicate row on the leaderboard every time.
+    if (!this.state.cloudScoreDocId) {
+      this.submitScoreToCloud(finalRank);
+    }
   },
 
   async submitScoreToCloud(rankTitle) {
