@@ -4,7 +4,7 @@
  * Script Logika Interaktif & Web Audio Engine
  */
 
-import { submitScore, attachReflection, fetchTopScores } from './score-store.js';
+import { isFirebaseConfigured, submitScore, attachReflection, fetchTopScores } from './score-store.js';
 
 // Confetti & Particle FX Engine (Zero External Dependency)
 class ParticleEngine {
@@ -576,6 +576,7 @@ const GameApp = {
     xp: 0,
     streak: 0,
     unlockedLevels: [1],
+    completedLevels: [],
     badges: [],
     level1Collected: [],
     level2Index: 0,
@@ -913,23 +914,42 @@ const GameApp = {
     setTimeout(() => pill.remove(), 1200);
   },
 
-  // Combo / Streak Tracker
-  triggerCombo(bonusXP = 5) {
+  // Combo / Streak Tracker. awardXp=false replays the visual/audio feedback
+  // (so replaying a level for practice still feels rewarding) without
+  // actually granting XP again - see isLevelDone().
+  triggerCombo(bonusXP = 5, awardXp = true) {
     const banner = document.getElementById('combo-banner');
     if (!banner) return;
     banner.classList.remove('hidden');
     const textEl = document.getElementById('combo-text');
     const bonusEl = document.getElementById('combo-bonus');
     if (textEl) textEl.textContent = `COMBO ${this.state.streak}x! 🔥`;
-    if (bonusEl) bonusEl.textContent = `+${bonusXP} XP Bonus`;
-    
+    if (bonusEl) bonusEl.textContent = awardXp ? `+${bonusXP} XP Bonus` : `Combo!`;
+
     banner.style.animation = 'none';
     banner.offsetHeight; // reflow
     banner.style.animation = 'comboPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
 
-    this.addXP(bonusXP);
-    this.showFloatingXP(bonusXP, `Combo ${this.state.streak}x! 🔥`);
+    if (awardXp) {
+      this.addXP(bonusXP);
+      this.showFloatingXP(bonusXP, `Combo ${this.state.streak}x! 🔥`);
+    }
     SFX.combo(this.state.streak);
+  },
+
+  // Tracks which levels have already been fully completed at least once in
+  // this session, so replaying a level (for practice) doesn't let a student
+  // farm unlimited XP/badges by re-claiming the same completion reward.
+  isLevelDone(n) {
+    return this.state.completedLevels.includes(n);
+  },
+
+  markLevelDone(n) {
+    if (!this.isLevelDone(n)) this.state.completedLevels.push(n);
+  },
+
+  unlockLevel(n) {
+    if (!this.state.unlockedLevels.includes(n)) this.state.unlockedLevels.push(n);
   },
 
   resetCombo() {
@@ -1362,21 +1382,27 @@ const GameApp = {
   },
 
   completeLevel1() {
-    this.addXP(50 + 20); // 50 word xp + 20 level completion
-    this.state.unlockedLevels.push(2);
-    this.state.badges.push('badge-1');
+    const alreadyDone = this.isLevelDone(1);
+    if (!alreadyDone) {
+      this.addXP(50 + 20); // 50 word xp + 20 level completion
+      this.state.badges.push('badge-1');
+      this.markLevelDone(1);
+      setTimeout(() => SFX.badgeUnlock(), 260);
+    }
+    this.unlockLevel(2);
     SFX.levelUnlock();
-    setTimeout(() => SFX.badgeUnlock(), 260);
     if (this.particles) {
       this.particles.burst(window.innerWidth / 2, window.innerHeight / 2, 80);
     }
-    this.setCompanion("Selamat! Kamu berhasil meraih Lencana 🔎 Mata Elang Kata!");
+    this.setCompanion(alreadyDone ? "Latihan bagus! Level ini sudah pernah kamu selesaikan sebelumnya." : "Selamat! Kamu berhasil meraih Lencana 🔎 Mata Elang Kata!");
     this.showModal({
       icon: '🔎',
-      eyebrow: 'Level 1 Tuntas',
-      title: 'Lencana Mata Elang Kata!',
-      message: 'Kamu berhasil menemukan seluruh kosakata kunci dalam cerita.',
-      xp: 70,
+      eyebrow: alreadyDone ? 'Diselesaikan Ulang' : 'Level 1 Tuntas',
+      title: alreadyDone ? 'Sudah Pernah Diselesaikan' : 'Lencana Mata Elang Kata!',
+      message: alreadyDone
+        ? 'Kamu sudah pernah menyelesaikan level ini sebelumnya, jadi XP tidak ditambahkan lagi supaya adil bagi detektif lain.'
+        : 'Kamu berhasil menemukan seluruh kosakata kunci dalam cerita.',
+      xp: alreadyDone ? null : 70,
       variant: 'reward',
       confirmText: 'Lanjut ke Peta ➔',
       onConfirm: () => {
@@ -1443,10 +1469,10 @@ const GameApp = {
       this.haptic(30);
 
       if (this.state.streak >= 2) {
-        this.triggerCombo(5);
+        this.triggerCombo(5, !this.isLevelDone(2));
       } else {
         SFX.correct();
-        this.showFloatingXP(10);
+        if (!this.isLevelDone(2)) this.showFloatingXP(10);
       }
 
       if (this.particles) {
@@ -1482,21 +1508,27 @@ const GameApp = {
         this.renderLevel2Question();
       } else {
         // Level 2 completed
-        this.addXP(20); // Level bonus
-        this.state.unlockedLevels.push(3);
-        this.state.badges.push('badge-2');
+        const l2AlreadyDone = this.isLevelDone(2);
+        if (!l2AlreadyDone) {
+          this.addXP(20); // Level bonus
+          this.state.badges.push('badge-2');
+          this.markLevelDone(2);
+          setTimeout(() => SFX.badgeUnlock(), 260);
+        }
+        this.unlockLevel(3);
         SFX.levelUnlock();
-        setTimeout(() => SFX.badgeUnlock(), 260);
         if (this.particles) {
           this.particles.burst(window.innerWidth / 2, window.innerHeight / 2, 80);
         }
-        this.setCompanion("Luar biasa! Labirin Makna berhasil kamu lalui, lencana Pemburu Makna diraih!");
+        this.setCompanion(l2AlreadyDone ? "Latihan bagus! Level ini sudah pernah kamu selesaikan sebelumnya." : "Luar biasa! Labirin Makna berhasil kamu lalui, lencana Pemburu Makna diraih!");
         this.showModal({
           icon: '📖',
-          eyebrow: 'Level 2 Tuntas',
-          title: 'Lencana Pemburu Makna!',
-          message: 'Kamu berhasil memecahkan seluruh petunjuk konteks kalimat.',
-          xp: 20,
+          eyebrow: l2AlreadyDone ? 'Diselesaikan Ulang' : 'Level 2 Tuntas',
+          title: l2AlreadyDone ? 'Sudah Pernah Diselesaikan' : 'Lencana Pemburu Makna!',
+          message: l2AlreadyDone
+            ? 'Kamu sudah pernah menyelesaikan level ini sebelumnya, jadi XP tidak ditambahkan lagi supaya adil bagi detektif lain.'
+            : 'Kamu berhasil memecahkan seluruh petunjuk konteks kalimat.',
+          xp: l2AlreadyDone ? null : 20,
           variant: 'reward',
           confirmText: 'Lanjut ke Peta ➔',
           onConfirm: () => {
@@ -1564,8 +1596,11 @@ const GameApp = {
     if (item.gate === gateType) {
       // Correct placement
       SFX.correct();
-      this.showFloatingXP(5);
       this.haptic(25);
+      if (!this.isLevelDone(3)) {
+        this.showFloatingXP(5);
+        this.addXP(5);
+      }
       this.state.level3Sorted[gateType].push(item);
       this.state.level3Pool = this.state.level3Pool.filter(w => w.word !== item.word);
       this.state.level3SelectedWord = null;
@@ -1577,7 +1612,6 @@ const GameApp = {
       tag.textContent = `✓ ${item.word}`;
       gateList.appendChild(tag);
 
-      this.addXP(5);
       this.renderLevel3Pool();
       this.setCompanion(`Benar sekali! Kata "${item.word}" terbukti masuk ke Gerbang ${gateType.toUpperCase()}!`);
 
@@ -1607,20 +1641,26 @@ const GameApp = {
   },
 
   completeLevel3() {
-    this.addXP(20); // Level bonus
-    this.state.unlockedLevels.push(4);
-    this.state.badges.push('badge-3');
+    const alreadyDone = this.isLevelDone(3);
+    if (!alreadyDone) {
+      this.addXP(20); // Level bonus
+      this.state.badges.push('badge-3');
+      this.markLevelDone(3);
+      setTimeout(() => SFX.badgeUnlock(), 260);
+    }
+    this.unlockLevel(4);
     SFX.levelUnlock();
-    setTimeout(() => SFX.badgeUnlock(), 260);
     if (this.particles) {
       this.particles.burst(window.innerWidth / 2, window.innerHeight / 2, 80);
     }
     this.showModal({
       icon: '🧠',
-      eyebrow: 'Level 3 Tuntas',
-      title: 'Lencana Ahli Konteks!',
-      message: 'Kamu berhasil memilah seluruh kata ke gerbang yang tepat.',
-      xp: 20,
+      eyebrow: alreadyDone ? 'Diselesaikan Ulang' : 'Level 3 Tuntas',
+      title: alreadyDone ? 'Sudah Pernah Diselesaikan' : 'Lencana Ahli Konteks!',
+      message: alreadyDone
+        ? 'Kamu sudah pernah menyelesaikan level ini sebelumnya, jadi XP tidak ditambahkan lagi supaya adil bagi detektif lain.'
+        : 'Kamu berhasil memilah seluruh kata ke gerbang yang tepat.',
+      xp: alreadyDone ? null : 20,
       variant: 'reward',
       confirmText: 'Lanjut ke Peta ➔',
       onConfirm: () => {
@@ -1710,21 +1750,27 @@ const GameApp = {
       return;
     }
 
-    this.addXP(40); // 30 kalimat + 10 level bonus
-    this.state.unlockedLevels.push(5);
-    this.state.badges.push('badge-4');
+    const alreadyDone = this.isLevelDone(4);
+    if (!alreadyDone) {
+      this.addXP(40); // 30 kalimat + 10 level bonus
+      this.state.badges.push('badge-4');
+      this.markLevelDone(4);
+      setTimeout(() => SFX.badgeUnlock(), 260);
+    }
+    this.unlockLevel(5);
     SFX.levelUnlock();
-    setTimeout(() => SFX.badgeUnlock(), 260);
     if (this.particles) {
       this.particles.burst(window.innerWidth / 2, window.innerHeight / 2, 90);
     }
-    this.setCompanion("Kalimatmu sangat kreatif! Benteng Boss Final kini telah dibuka!");
+    this.setCompanion(alreadyDone ? "Latihan bagus! Level ini sudah pernah kamu selesaikan sebelumnya." : "Kalimatmu sangat kreatif! Benteng Boss Final kini telah dibuka!");
     this.showModal({
       icon: '✍️',
-      eyebrow: 'Level 4 Tuntas',
-      title: 'Lencana Perakit Kalimat!',
-      message: 'Dewan Detektif meloloskan kalimatmu. Benteng Boss Final kini terbuka!',
-      xp: 40,
+      eyebrow: alreadyDone ? 'Diselesaikan Ulang' : 'Level 4 Tuntas',
+      title: alreadyDone ? 'Sudah Pernah Diselesaikan' : 'Lencana Perakit Kalimat!',
+      message: alreadyDone
+        ? 'Kamu sudah pernah menyelesaikan level ini sebelumnya, jadi XP tidak ditambahkan lagi supaya adil bagi detektif lain.'
+        : 'Dewan Detektif meloloskan kalimatmu. Benteng Boss Final kini terbuka!',
+      xp: alreadyDone ? null : 40,
       variant: 'reward',
       confirmText: '⚔️ Hadapi Boss Final ➔',
       onConfirm: () => {
@@ -1792,8 +1838,8 @@ const GameApp = {
       this.damageBoss();
 
       if (this.state.streak >= 2) {
-        this.triggerCombo(5);
-      } else {
+        this.triggerCombo(5, !this.isLevelDone(5));
+      } else if (!this.isLevelDone(5)) {
         this.showFloatingXP(10, 'Serangan Kritis!');
       }
 
@@ -1825,13 +1871,17 @@ const GameApp = {
       this.renderLevel5Question();
     } else {
       // Boss defeated!
-      this.addXP(50); // Boss bonus
-      this.state.badges.push('badge-5');
+      const alreadyDone = this.isLevelDone(5);
+      if (!alreadyDone) {
+        this.addXP(50); // Boss bonus
+        this.state.badges.push('badge-5');
+        this.markLevelDone(5);
+      }
       SFX.fanfare();
       if (this.particles) {
         this.particles.burst(window.innerWidth / 2, window.innerHeight / 2, 120);
       }
-      this.setCompanion("VICTORY MUTLAK! Gelar Master Detektif resmi kamu raih!");
+      this.setCompanion(alreadyDone ? "Latihan bagus! Boss ini sudah pernah kamu taklukkan sebelumnya." : "VICTORY MUTLAK! Gelar Master Detektif resmi kamu raih!");
       this.showFinalResults();
     }
   },
@@ -1889,6 +1939,12 @@ const GameApp = {
   async renderLeaderboard() {
     const statusEl = document.getElementById('lb-status-message');
     const listEl = document.getElementById('lb-list');
+    const scopeDescEl = document.getElementById('lb-scope-desc');
+    if (scopeDescEl) {
+      scopeDescEl.textContent = isFirebaseConfigured
+        ? 'Peringkat detektif dengan XP tertinggi dari seluruh siswa yang sudah menyelesaikan petualangan (gabungan semua perangkat).'
+        : 'Peringkat detektif dengan XP tertinggi yang tersimpan di perangkat ini (cocok dipakai bergiliran satu laptop/tablet di kelas).';
+    }
     statusEl.classList.remove('hidden');
     statusEl.textContent = 'Memuat papan peringkat...';
     listEl.innerHTML = '';
@@ -1897,7 +1953,9 @@ const GameApp = {
     this._leaderboardData = scores;
 
     if (scores.length === 0) {
-      statusEl.textContent = 'Belum ada skor tersimpan di perangkat ini. Skor akan muncul di sini setelah ada yang menyelesaikan petualangan.';
+      statusEl.textContent = isFirebaseConfigured
+        ? 'Belum ada skor tersimpan. Skor akan muncul di sini setelah ada siswa yang menyelesaikan petualangan, dari HP mana pun.'
+        : 'Belum ada skor tersimpan di perangkat ini. Skor akan muncul di sini setelah ada yang menyelesaikan petualangan.';
       return;
     }
 
