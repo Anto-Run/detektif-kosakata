@@ -9,12 +9,12 @@
  * seluruh kelas yang nonaktif otomatis (tidak ada error yang muncul ke siswa).
  */
 const firebaseConfig = {
-  apiKey: "GANTI_DENGAN_API_KEY",
-  authDomain: "GANTI.firebaseapp.com",
-  projectId: "GANTI",
-  storageBucket: "GANTI.appspot.com",
-  messagingSenderId: "GANTI",
-  appId: "GANTI"
+  apiKey: "AIzaSyAuzrL_K-kA3FRaGUZCmDgENKeM-NMmFJk",
+  authDomain: "deteksi-kosakata.firebaseapp.com",
+  projectId: "deteksi-kosakata",
+  storageBucket: "deteksi-kosakata.firebasestorage.app",
+  messagingSenderId: "861048194618",
+  appId: "1:861048194618:web:7a1f67b3ff59c797881703"
 };
 
 const isFirebaseConfigured = !Object.values(firebaseConfig).some((v) => v.startsWith('GANTI'));
